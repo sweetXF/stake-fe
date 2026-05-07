@@ -1,3 +1,3 @@
 export default function Withdraw() {
-    return <div>Withdraw</div>;
+    return <div>Withdrawal</div>;
 }
