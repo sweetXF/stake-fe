@@ -9,6 +9,7 @@ if (!projectId || !infuraId) {
   throw new Error('请在 .env.local 中配置 NEXT_PUBLIC_WALLETCONNECT_ID 和 NEXT_PUBLIC_INFURA_ID' );
 }
 
+//连接钱包后读当前链信息
 export const config = getDefaultConfig({
   appName: 'Meta Node Stake',
   projectId: projectId,
