@@ -79,7 +79,7 @@ export default function Stake() {
         }else{
           if(!tokenContract){
             setTxMessage('tokenContract not found');
-            // setLoading(false);
+            setLoading(false);
             return;
           }
 
@@ -118,7 +118,7 @@ export default function Stake() {
             
             <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8 p-4 sm:p-8 rounded-xl sm:rounded-2xl border border-gray-700/50 group-hover:border-primary-500/50 transition-colors duration-300 shadow-lg">
               <div className="flex flex-col justify-center flex-1 min-w-0 items-center sm:items-start">
-                <span>Staked Amount</span>
+                <span>Pool Staked Amount</span>
                 <span>
                   {parseFloat(poolData.stTokenAmount || '0').toFixed(4)} {isEthPool ? 'ETH' : 'Token'}
                 </span>
