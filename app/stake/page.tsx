@@ -135,7 +135,8 @@ export default function Stake() {
                 placeholder="0.0"
                 className="text-lg sm:text-xl py-3 sm:py-5"
               />
-                <p>{balance ? `Available: ${parseFloat(formatUnits(balance?.value,decimals)).toFixed(4)} ${isEthPool ? 'ETH' : 'Token'}` : undefined}</p>
+              <span>{isEthPool ? 'ETH' : 'Token'}</span>
+              <p>{balance ? `Available: ${parseFloat(formatUnits(balance?.value,decimals)).toFixed(4)} ${isEthPool ? 'ETH' : 'Token'}` : undefined}</p>
             </div>
 
             {/* Stake Button */}

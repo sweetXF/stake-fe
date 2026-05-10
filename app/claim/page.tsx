@@ -98,7 +98,7 @@ export default function Claim() {
                     className="bg-blue-500 text-white px-4 py-2  mb-6 rounded disabled:opacity-50"
                   >
                     <span>
-                      {loading ? 'Processing...' : (canClaim ? 'Claim Rewards' : 'No Rewards')}
+                      {loading ? 'Processing...' : canClaim ? 'Claim Rewards' : 'No Rewards'}
                     </span>
                   </button>
                   {txMessage ?  <p className="text-sm text-gray-700 break-all">{txMessage}</p> : null}
