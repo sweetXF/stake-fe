@@ -1,86 +1,164 @@
 import { useAccount } from "wagmi";
-import { useStakeInfo } from "./useContract";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useStakeContract } from "./useContract";
+import { useCallback, useEffect, useState } from "react";
 import { formatUnits } from "viem";
+import { Pid } from "@/utils";
 
-export type RewardsData={
+type RewardsData={
     pendingReward:string; //待领取的奖励
     stakedAmount:string; //质押的金额
     lastUpdate:number; //最后更新的时间
 }
 
+//0 stAmount:bigint, //用户质押的代币数量
+//1 finishedMetaNode:bigint,//已分配的 MetaNode 数量
+//2 pendingMetaNode:bigint //待领取的 MetaNode 数量
+type UserData=[bigint,bigint,bigint]; //用户数据
+
+//0 stTokenAddress:string; //质押代币的地址
+//1 poolWeight:bigint; //质押池权重
+//2 lastRewardBlock:bigint; //最后一次计算奖励的区块号
+//3 accMetaNodePerST:bigint; //每个质押代币累积的 MetaNode 数量
+//4 stTokenAmount:bigint; //池中的总质押代币量
+//5 minDepositAmount:bigint; //最小质押金额
+//6 unstakeLockedBlocks:bigint; //解除质押的锁定区块数
+type PoolData=[string,bigint,bigint,bigint,bigint,bigint,bigint]; //池数据
+
+type PoolDataInfo =  {
+    stTokenAddress:string;
+    poolWeight:string; //质押池权重
+    lastRewardBlock:string; //最后一次计算奖励的区块号
+    accMetaNodePerST:string; //每个质押代币累积的 MetaNode 数量
+    stTokenAmount:string; //池中的总质押代币量
+    minDepositAmount:string; //最小质押金额
+    unstakeLockedBlocks:string; //解除质押的锁定区块数
+}
+
 const useRewards = () => {
     const {address,isConnected}=useAccount();
-    const stakeInfo=useStakeInfo(address);
+    const stakeContract=useStakeContract();
 
-    //奖励数据
+    const [metaNodeAddress,setMetaNodeAddress] = useState<string>(""); //代币地址
+    
+    const [loading,setLoading]=useState(false);
+
     const [rewardsData,setRewardsData] = useState<RewardsData>({
         pendingReward: "0",
         stakedAmount: "0",
         lastUpdate: 0
     });
 
-    //代币地址
-    // const [metaNodeAddress,setMetaNodeAddress] = useState<string>("");
+    const [poolData,setPoolData] = useState<PoolDataInfo>({
+        stTokenAddress: "",
+        poolWeight: '0',
+        lastRewardBlock: '0',
+        accMetaNodePerST: '0',
+        stTokenAmount: '0',
+        minDepositAmount: '0',
+        unstakeLockedBlocks: '0',
+    });
 
-    console.log("stakeInfo",stakeInfo);
+    //useCallback 缓存函数，函数不会每次渲染都重新创建
+    //获取池数据
+   const fetchPoolData=useCallback(async()=>{
+        if(!stakeContract || !address || !isConnected) return;
 
-    const poolInfoData=stakeInfo.poolInfo.data || [];
-    //池子数据格式化（便于页面显示）
-    const poolData = {
-        stTokenAddress: poolInfoData?.[0] || '',
-        poolWeight: poolInfoData?.[1] ? formatUnits(poolInfoData[1], 18) : '0',
-        lastRewardBlock: poolInfoData?.[2]?.toString() || '0',
-        accMetaNodePerShare: poolInfoData?.[3] ? formatUnits(poolInfoData[3], 18) : '0',
-        stTokenAmount: poolInfoData?.[4] ? formatUnits(poolInfoData[4], 18) : '0',
-        minDepositAmount: poolInfoData?.[5] ? formatUnits(poolInfoData[5], 18) : '0',
-        unstakeLockedBlocks: poolInfoData?.[6]?.toString() || '0',
-    };
+        try{
+            const pools = await stakeContract.read.pool([Pid]) as PoolData;
+            console.log('poolData:',pools);
 
-    //提现数据
-    const withdrawData = stakeInfo.withdrawAmount.data || [BigInt(0), BigInt(0)];
-    const requestAmount=formatUnits(withdrawData[0], 18); //发起解押unstake、正在锁定中的金额，锁仓期不能提取
-    const pendingWithdrawAmount=formatUnits(withdrawData[1], 18);//已解锁的金额，待提取
+            setPoolData({
+                stTokenAddress: pools[0] as string,
+                poolWeight: formatUnits(pools[1] as bigint || BigInt(0), 18),
+                lastRewardBlock: formatUnits(pools[2] as bigint || BigInt(0), 18),
+                accMetaNodePerST: formatUnits(pools[3] as bigint || BigInt(0), 18),
+                stTokenAmount: formatUnits(pools[4] as bigint || BigInt(0), 18),
+                minDepositAmount: formatUnits(pools[5] as bigint || BigInt(0), 18),
+                unstakeLockedBlocks: formatUnits(pools[6] as bigint || BigInt(0), 18)
+            })
+        } catch(err){
+            console.error('获取池数据失败:',err);
+        }
+    },[stakeContract,address,isConnected]);
 
-    const formattedRewardsData=useMemo(()=>({
-        pendingReward: formatUnits(stakeInfo.pendingReward.data ?? BigInt(0), 18),
-        stakedAmount: formatUnits(stakeInfo.stakingBalance.data ?? BigInt(0), 18),
-        lastUpdate: Date.now(),
-    }),[stakeInfo.pendingReward.data, stakeInfo.stakingBalance.data])
+    //获取MetaNode代币地址
+    const fetchMetaNodeAddress=useCallback(async()=>{
+        if(!stakeContract) return;
 
-    // 同步奖励数据
+        try{
+            const MTDAddress = await stakeContract.read.MetaNode();
+            console.log('MetaNodeAddress:',MTDAddress);
+            setMetaNodeAddress(MTDAddress as string);
+        } catch(err){
+            console.error('获取MetaNode代币地址失败:',err);
+        }
+    },[stakeContract]);
+
+    //获取奖励数据
+    const fetchRewardsData=useCallback(async()=>{
+        if(!stakeContract || !address || !isConnected) return;
+
+        try{
+            setLoading(true);
+
+            const userData=await stakeContract.read.user([Pid,address]) as UserData;
+            const stakedAmount = await stakeContract.read.stakingBalance([Pid,address]);
+            console.log('userData:',userData);
+            console.log('stakedAmount:',stakedAmount);
+
+            setRewardsData({
+                pendingReward: formatUnits(userData[2] || BigInt(0), 18),
+                stakedAmount: formatUnits(stakedAmount as bigint || BigInt(0), 18),
+                lastUpdate: Date.now()
+            });
+        } catch(err){
+            console.error('获取质押奖励数据失败:',err);
+            setRewardsData({
+                pendingReward: "0",
+                stakedAmount: "0",
+                lastUpdate: Date.now()
+            })
+        } finally {
+            setLoading(false);
+        }
+    },[stakeContract,address,isConnected]);
+
+    //初始加载
+    useEffect(()=>{
+        if(isConnected && address){
+            // 使用setTimeout避免同步setState导致的级联渲染
+            setTimeout(() => {
+                fetchPoolData();
+                fetchMetaNodeAddress();
+                fetchRewardsData();
+            }, 0);
+        }
+    },[isConnected,address,fetchPoolData,fetchMetaNodeAddress,fetchRewardsData]);
+    
+    //定期刷新RewardsData
     useEffect(()=>{
         if(!isConnected || !address) return;
-        setRewardsData(formattedRewardsData);
-    },[
-        formattedRewardsData,
-        isConnected,
-        address
-    ])
+        const interval=setInterval(()=>{
+            fetchRewardsData();
+        },60000) //每60秒刷新一次
+        return ()=>clearInterval(interval);
+    },[isConnected,address,fetchRewardsData]);
 
-    //同步MetaNode地址
-    // useEffect(()=>{
-    //     if(stakeInfo.metaNodeAddress.data){
-    //         setMetaNodeAddress(stakeInfo.metaNodeAddress.data as string);
-    //     }
-    // },[stakeInfo.metaNodeAddress.data])
-
-    //手动刷新
+    //手动刷新RewardsData
     const refresh=useCallback(()=>{
-        stakeInfo.poolInfo.refetch();
-        stakeInfo.userInfo.refetch();
-        stakeInfo.stakingBalance.refetch();
-        stakeInfo.pendingReward.refetch();
-        stakeInfo.withdrawAmount.refetch();
-    },[stakeInfo])
+        fetchRewardsData();
+    },[fetchRewardsData])
 
-    //添加MetaNode代币（MTD）到钱包
+    //添加MetaNode代币（MTD）到 MetaMask钱包
     // const addMetaNodeToWallet=useCallback(async()=>{
-    //     if(!metaNodeAddress) return false;
+    //     if(!metaNodeAddress) {
+    //         console.error('MetaNode地址为空');
+    //         return false;
+    //     }
     //     try{
     //         return await addMetaNodeToMetaMask(metaNodeAddress);
     //     }catch(err){
-    //         console.error('添加失败',err);
+    //         console.error('添加MetaNode代币到钱包失败',err);
     //         return false;
     //     }
     // },[metaNodeAddress])
@@ -88,15 +166,11 @@ const useRewards = () => {
     return {
         rewardsData,
         poolData,
-        requestAmount,
-        pendingWithdrawAmount,
-        withdrawData,
-        canClaim:parseFloat(rewardsData.pendingReward) > 0,
-        loading:stakeInfo.isLoading,
+        loading,
+        metaNodeAddress,
         refresh,
-        // metaNodeAddress,
         // addMetaNodeToWallet,
-
+        canClaim:parseFloat(rewardsData.pendingReward) > 0,
     }
 
 }

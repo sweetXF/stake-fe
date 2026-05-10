@@ -23,7 +23,8 @@ export function useContract<TAbi extends Abi>(
     const chainId=options?.chainId || curChainId;
 
     const {data:walletClient}=useWalletClient();
-    console.log('walletClient',walletClient,'zeroAddress',zeroAddress);
+    console.log('stAddressOrAddressMap:',addressOrAddressMap,'chainId',chainId);
+    console.log('walletClient:',walletClient);
 
     //useMemo缓存结果，避免重复创建合约
     return useMemo(()=>{
@@ -43,7 +44,7 @@ export function useContract<TAbi extends Abi>(
                 signer: walletClient ?? undefined
             })
         }catch(e){
-            console.error('Failed to create contract:', e);
+            console.error('获取合约失败:', e);
             return null;
         }
 
@@ -60,7 +61,7 @@ export function useStakeContract(){
 
 //返回ERC20代币合约 （授权approve质押合约消耗代币）
 export function useTokenContract(tokenAddress?:Address | string){
-    const addr=tokenAddress && tokenAddress!==zeroAddress ? (tokenAddress as Address) : undefined;
-    
+    //仅当 tokenAddress 有效时返回合约
+    const addr=tokenAddress && tokenAddress!==zeroAddress ? (tokenAddress as Address) : undefined;  
     return useContract(addr,erc20Abi);
 }
