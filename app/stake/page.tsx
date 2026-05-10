@@ -126,16 +126,20 @@ export default function Stake() {
             </div>
 
             {/* input Field */}
-            <div className="space-y-4 sm:space-y-6">
+            <div className="space-y-4">
                 <p>Amount to Stake</p>
-                <input
-                type="number"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="0.0"
-                className="text-lg sm:text-xl py-3 sm:py-5"
-              />
-              <span>{isEthPool ? 'ETH' : 'Token'}</span>
+                <div className="relative">
+                  <input
+                    type="number"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    placeholder="0.0"
+                    className="w-full px-4 py-2 border rounded"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">
+                    {isEthPool ? 'ETH' : 'Token'}
+                  </span>
+                </div>
               <p>{balance ? `Available: ${parseFloat(formatUnits(balance?.value,decimals)).toFixed(4)} ${isEthPool ? 'ETH' : 'Token'}` : undefined}</p>
             </div>
 
