@@ -42,7 +42,7 @@ export default function Stake() {
       }
     })
 
-    const decimals=balance?.decimals ?? 18;//decimals为null /undefined 是默认值18
+    const decimals=balance?.decimals ?? 18;//decimals为null /undefined 时默认18
 
     //质押事件（点击stake）
     const handleStake=async()=>{

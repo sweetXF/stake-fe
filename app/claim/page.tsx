@@ -32,7 +32,7 @@ export default function Claim() {
               return;
             }
             setTxMessage('领取失败');
-
+            setLoading(false);
         }catch(e){
             setLoading(false);
             console.error(e);

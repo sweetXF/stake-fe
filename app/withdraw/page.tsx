@@ -1,7 +1,11 @@
 'use client'
+import { useStakeContract } from "@/hooks/useContract";
+import { Pid } from "@/utils";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
-import React, { useState } from "react";
-import { useAccount } from "wagmi";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { formatUnits, parseUnits } from "viem";
+import { waitForTransactionReceipt } from "viem/actions";
+import { useAccount, useWalletClient } from "wagmi";
 
 type UserStakeData={
     staked:string; //质押的金额
@@ -17,27 +21,92 @@ const InitUserData:UserStakeData={
 }
 
 export default function Withdraw() {
-    const {isConnected}=useAccount();
+    const {address,isConnected}=useAccount();
+    const stakeContract=useStakeContract();
     const [userData,setUserData] = useState<UserStakeData>(InitUserData);
     const [amount,setAmount] = useState('');
-
-    const isWithdrawable=true;
+    const {data:walletClient}=useWalletClient();
 
     const [unstakeLoading,setUnstakeLoading] = useState(false);
     const [withdrawLoading,setwithdrawLoading] = useState(false);
 
-    const handleAmountChange = (e:React.ChangeEvent<HTMLInputElement>) => {
-        console.log(e.target.value);
-    };
+    const [unstakeTxMessage,setUnstakeTxMessage]=useState('');
+    const [withdrawTxMessage,setWithdrawTxMessage]=useState('');
 
-    const handleUnStake=()=>{
-        console.log('unstake');
-    }
+    //是否可提现
+    const isWithdrawable=useMemo(()=>{
+        return Number(userData.withdrawable)>0 && isConnected;
+    },[userData.withdrawable,isConnected]);
 
-    const handleWithdraw=()=>{
-        console.log('withdraw');
-    }
+    //获取用户数据
+    const getUserData=useCallback(async ()=>{
+        if(!stakeContract || !address) return;
+        //质押的金额
+        const staked=await stakeContract.read.stakingBalance([Pid,address]);
+        //待提现的金额
+        // @ts-ignore
+        const [requestAmount,pendingWithdrawAmount] = await 
+        stakeContract.read.withdrawAmount([Pid,address]);
+        const ableWAmount=Number(formatUnits(pendingWithdrawAmount,18));
+        const totalWAmount=Number(formatUnits(requestAmount,18));
+        setUserData({
+            staked:formatUnits(staked as bigint,18),
+            withdrawable:ableWAmount.toString(),
+            withdrawPending:(totalWAmount-ableWAmount).toFixed(4),
+        })
+    },[stakeContract,address])
 
+    useEffect(()=>{
+        if(stakeContract && address){
+            queueMicrotask(()=>{
+                getUserData();
+            })
+        }
+    },[stakeContract,address,getUserData])
+
+    //点击解押
+    const handleUnStake=useCallback(async ()=>{
+        if(!stakeContract || !walletClient) return;
+        if(!amount || parseFloat(amount)<=0){
+          setUnstakeTxMessage('请输入有效金额');
+          return;
+        }
+        if(parseFloat(amount) > parseFloat(userData.staked)){
+          setUnstakeTxMessage('输入金额不能大于质押总金额');
+          return;
+        }
+        try{
+          setUnstakeLoading(true);
+          const unstakeTx=await stakeContract.write.unstake([Pid,parseUnits(amount,18)])
+          await waitForTransactionReceipt(walletClient,{hash:unstakeTx});
+          setUnstakeTxMessage('解押成功');
+          setAmount('');
+          getUserData();
+
+        }catch(err){
+          setUnstakeTxMessage('交易失败，请重试');
+          console.error(err);
+        }finally{
+          setUnstakeLoading(false);
+        }
+    },[stakeContract,walletClient,amount,userData.staked,getUserData]);
+
+    //点击提现
+    const handleWithdraw=useCallback(async ()=>{
+      if(!stakeContract || !walletClient) return;
+      try{
+        setwithdrawLoading(true);
+        const withdrawTx=await stakeContract.write.withdraw([Pid]);
+        await waitForTransactionReceipt(walletClient,{hash:withdrawTx});
+        setWithdrawTxMessage('提现成功');
+        setwithdrawLoading(false);
+        getUserData();
+      }catch(e){
+        setwithdrawLoading(false);
+        setWithdrawTxMessage('提现失败，请重试');
+        console.error(e);
+      }
+    },[stakeContract,walletClient,getUserData]);
 
     return (
         <div className="w-full max-w-4xl mx-auto">
@@ -60,7 +129,7 @@ export default function Withdraw() {
                 <input
                   type="number"
                   value={amount}
-                  onChange={handleAmountChange}
+                  onChange={(e)=>setAmount(e.target.value)}
                   placeholder="0.0"
                   className="w-full px-4 py-2 border rounded"
                 />
@@ -76,22 +145,25 @@ export default function Withdraw() {
                   <ConnectButton />
                 </div>
               ) : (
-                <button
-                  onClick={handleUnStake}
-                  disabled={unstakeLoading || !amount}
-                  className="bg-blue-500 text-white px-4 py-2  mb-6 rounded disabled:opacity-50"
-                >
-                  {unstakeLoading ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      <span>Processing...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Unstake ETH</span>
-                    </>
-                  )}
-                </button>
+                <>
+                  <button
+                    onClick={handleUnStake}
+                    disabled={unstakeLoading || !amount}
+                    className="bg-blue-500 text-white px-4 py-2  mb-6 rounded disabled:opacity-50"
+                  >
+                    {unstakeLoading ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span>Processing...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Unstake ETH</span>
+                      </>
+                    )}
+                  </button>
+                  {unstakeTxMessage ? <p className="text-sm text-gray-700 break-all">{unstakeTxMessage}</p> : null}
+                </>
               )}
             </div>
           </div>
@@ -134,6 +206,7 @@ export default function Withdraw() {
                 </>
               )}
             </button>
+            {withdrawTxMessage ? <p className="text-sm text-gray-700 break-all">{withdrawTxMessage}</p> : null}
           </div>
        
       </div>);
