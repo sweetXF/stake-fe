@@ -4,7 +4,7 @@ import useRewards from "@/hooks/useRewards";
 import { Pid } from "@/utils";
 import { StakeContractAddress } from "@/utils/env";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Address, formatUnits, parseUnits, zeroAddress } from "viem";
 import { waitForTransactionReceipt } from "viem/actions";
 import { useAccount, useBalance, useWalletClient } from "wagmi"
@@ -20,14 +20,12 @@ export default function Stake() {
 
     const [loading,setLoading]=useState(false);
 
-    console.log('stake-page-pool-data ::',poolData);
 
     const isEthPool=useMemo(()=>{
       const stAddr=poolData.stTokenAddress;
       return !stAddr || stAddr===zeroAddress;
     },[poolData.stTokenAddress])
 
-    console.log('stake-page-isEthPool ::',isEthPool);
 
     const tokenContract=useTokenContract(poolData.stTokenAddress as Address |undefined);
 
@@ -37,15 +35,15 @@ export default function Stake() {
       token:isEthPool ? undefined : (poolData.stTokenAddress as Address | undefined),
       query:{
         enabled:isConnected && (isEthPool || !!poolData.stTokenAddress),
-        refetchInterval:10000,// 10 seconds 轮询（重新获取数据）
+        refetchInterval:60000,// 10 seconds 轮询（重新获取数据）
         refetchIntervalInBackground:false // 是否在后台自动刷新，false不刷新
       }
     })
-
+    
     const decimals=balance?.decimals ?? 18;//decimals为null /undefined 时默认18
 
     //质押事件（点击stake）
-    const handleStake=async()=>{
+    const handleStake=useCallback(async()=>{
       if(!stakeContract || !walletClient) {
         return;
       }
@@ -107,10 +105,7 @@ export default function Stake() {
       } finally {
         setLoading(false);
       }
-
-
-    }
-
+    },[stakeContract,amount,balance,decimals,isEthPool,refetchBalance,refresh,tokenContract,walletClient]); 
 
     return (
         <div className="min-h-[420px] p-4 sm:p-8 md:p-12 from-gray-800/80 to-gray-900/80 shadow-2xl border-primary-500/20 border-[1.5px] rounded-2xl sm:rounded-3xl">

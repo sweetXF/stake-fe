@@ -23,8 +23,6 @@ export function useContract<TAbi extends Abi>(
     const chainId=options?.chainId || curChainId;
 
     const {data:walletClient}=useWalletClient();
-    console.log('stAddressOrAddressMap:',addressOrAddressMap,'chainId',chainId);
-    console.log('walletClient:',walletClient);
 
     //useMemo缓存结果，避免重复创建合约
     return useMemo(()=>{
