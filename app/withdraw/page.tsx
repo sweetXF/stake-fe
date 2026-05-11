@@ -114,8 +114,8 @@ export default function Withdraw() {
           {/* Stats Grid */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <div> Staked Amount：<span className="text-blue-500">{`${parseFloat(userData.staked).toFixed(4)} ETH`}</span></div>
-            <div> Available to Withdraw： <span className="text-blue-500">{`${parseFloat(userData.withdrawable).toFixed(4)} ETH`}</span></div>
             <div> Pending Withdraw：<span className="text-blue-500">{`${parseFloat(userData.withdrawPending).toFixed(4)} ETH`}</span></div>
+            <div> Available to Withdraw： <span className="text-blue-500">{`${parseFloat(userData.withdrawable).toFixed(4)} ETH`}</span></div>
           </div>
   
           {/* Unstake Section */}
