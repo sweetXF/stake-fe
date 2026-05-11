@@ -35,7 +35,7 @@ export default function Stake() {
       token:isEthPool ? undefined : (poolData.stTokenAddress as Address | undefined),
       query:{
         enabled:isConnected && (isEthPool || !!poolData.stTokenAddress),
-        refetchInterval:60000,// 10 seconds 轮询（重新获取数据）
+        refetchInterval:10000,// 10 seconds 轮询（重新获取数据）
         refetchIntervalInBackground:false // 是否在后台自动刷新，false不刷新
       }
     })
