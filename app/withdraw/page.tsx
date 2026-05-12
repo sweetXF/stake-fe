@@ -47,7 +47,6 @@ export default function Withdraw() {
       const lockedBlocks=Number(poolData.unstakeLockedBlocks) || 0;
       const totalTime=lockedBlocks*BLOCK_TIME_SECONDS; //秒
       if(totalTime<0.001) return 0;
-      if(totalTime<60) return totalTime;
       return (totalTime/60).toFixed(2); //分钟
     },[poolData.unstakeLockedBlocks])
 
