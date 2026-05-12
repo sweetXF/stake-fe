@@ -1,6 +1,7 @@
 'use client'
 import { useStakeContract } from "@/hooks/useContract";
-import { Pid } from "@/utils";
+import useRewards from "@/hooks/useRewards";
+import { BLOCK_TIME_SECONDS, Pid } from "@/utils";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { formatUnits, parseUnits } from "viem";
@@ -23,9 +24,11 @@ const InitUserData:UserStakeData={
 export default function Withdraw() {
     const {address,isConnected}=useAccount();
     const stakeContract=useStakeContract();
-    const [userData,setUserData] = useState<UserStakeData>(InitUserData);
-    const [amount,setAmount] = useState('');
     const {data:walletClient}=useWalletClient();
+    const [amount,setAmount] = useState('');
+
+    const [userData,setUserData] = useState<UserStakeData>(InitUserData);
+    const {poolData} = useRewards();
 
     const [unstakeLoading,setUnstakeLoading] = useState(false);
     const [withdrawLoading,setwithdrawLoading] = useState(false);
@@ -38,12 +41,24 @@ export default function Withdraw() {
         return Number(userData.withdrawable)>0 && isConnected;
     },[userData.withdrawable,isConnected]);
 
+    //延迟时间
+    console.log(poolData,'unstakeLockedBlocks:',poolData.unstakeLockedBlocks);
+    const delayTime_min=useMemo(()=>{
+      const lockedBlocks=Number(poolData.unstakeLockedBlocks) || 0;
+      const totalTime=lockedBlocks*BLOCK_TIME_SECONDS; //秒
+      if(totalTime<0.001) return 0;
+      if(totalTime<60) return totalTime;
+      return (totalTime/60).toFixed(2); //分钟
+    },[poolData.unstakeLockedBlocks])
+
     //获取用户数据
     const getUserData=useCallback(async ()=>{
         if(!stakeContract || !address) return;
-        //质押的金额
+        //当前账户质押的金额
         const staked=await stakeContract.read.stakingBalance([Pid,address]);
         //待提现的金额
+        //requestAmount：总共申请解押的金额。pendingWithdrawAmount：可直接提现的金额
+        //输入amount，点解押后withdrawPending有值，待提现，过20min左右withdrawable有值，可提现
         // @ts-ignore
         const [requestAmount,pendingWithdrawAmount] = await 
         stakeContract.read.withdrawAmount([Pid,address]);
@@ -181,13 +196,13 @@ export default function Withdraw() {
                   </div>
                 </div>
                 <div className="flex items-center text-sm text-gray-500">
-                  <span>20 min cooldown</span>
+                  <span>{delayTime_min} min cooldown</span>
                 </div>
               </div>
             </div>
   
             <div className="flex items-center text-sm text-gray-500">
-              <span>After unstaking, you need to wait 20 minutes to withdraw.</span>
+              <span>After unstaking, you need to wait {delayTime_min} minutes to withdraw.</span>
             </div>
   
             <button

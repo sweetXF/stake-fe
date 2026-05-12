@@ -3,6 +3,7 @@ import { useStakeContract } from "./useContract";
 import { useCallback, useEffect, useState } from "react";
 import { formatUnits } from "viem";
 import { Pid } from "@/utils";
+import { retryAndDelay } from "@/utils/retry";
 
 type RewardsData={
     pendingReward:string; //待领取的奖励
@@ -64,8 +65,7 @@ const useRewards = () => {
         if(!stakeContract || !address || !isConnected) return;
 
         try{
-            const pools = await stakeContract.read.pool([Pid]) as PoolData;
-            console.log('poolData:',pools);
+            const pools = await retryAndDelay(()=>stakeContract.read.pool([Pid]) as Promise<PoolData>);
 
             setPoolData({
                 stTokenAddress: pools[0] as string,
@@ -86,8 +86,7 @@ const useRewards = () => {
         if(!stakeContract) return;
 
         try{
-            const MTDAddress = await stakeContract.read.MetaNode();
-            console.log('MetaNodeAddress:',MTDAddress);
+            const MTDAddress = await retryAndDelay(()=> stakeContract.read.MetaNode() as Promise<string>);
             setMetaNodeAddress(MTDAddress as string);
         } catch(err){
             console.error('获取MetaNode代币地址失败:',err);
@@ -101,10 +100,8 @@ const useRewards = () => {
         try{
             setLoading(true);
 
-            const userData=await stakeContract.read.user([Pid,address]) as UserData;
-            const stakedAmount = await stakeContract.read.stakingBalance([Pid,address]);
-            console.log('userData:',userData);
-            console.log('stakedAmount:',stakedAmount);
+            const userData=await retryAndDelay(()=>stakeContract.read.user([Pid,address]) as Promise<UserData>);
+            const stakedAmount = await retryAndDelay(()=>stakeContract.read.stakingBalance([Pid,address]) as Promise<bigint>);
 
             setRewardsData({
                 pendingReward: formatUnits(userData[2] || BigInt(0), 18),
@@ -127,22 +124,22 @@ const useRewards = () => {
     useEffect(()=>{
         if(isConnected && address){
             // 使用setTimeout避免同步setState导致的级联渲染
-            setTimeout(() => {
+            queueMicrotask(()=>{
                 fetchPoolData();
                 fetchMetaNodeAddress();
                 fetchRewardsData();
-            }, 0);
+            })
         }
     },[isConnected,address,fetchPoolData,fetchMetaNodeAddress,fetchRewardsData]);
     
     //定期刷新RewardsData
-    useEffect(()=>{
-        if(!isConnected || !address) return;
-        const interval=setInterval(()=>{
-            fetchRewardsData();
-        },60000) //每60秒刷新一次
-        return ()=>clearInterval(interval);
-    },[isConnected,address,fetchRewardsData]);
+    // useEffect(()=>{
+    //     if(!isConnected || !address) return;
+    //     const interval=setInterval(()=>{
+    //         fetchRewardsData();
+    //     },60000) //每60秒刷新一次
+    //     return ()=>clearInterval(interval);
+    // },[isConnected,address,fetchRewardsData]);
 
     //手动刷新RewardsData
     const refresh=useCallback(()=>{
