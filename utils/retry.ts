@@ -1,8 +1,8 @@
 //重试、延迟
 export async function retryAndDelay<T>(
     fn:()=>Promise<T>,
-    maxRetries:number=3,
-    delay:number=1000
+    maxRetries:number=3, //最多重试 maxRetries 次
+    delay:number=1000 //每次重试间隔 delay 毫秒
 ):Promise<T>{
     let lastError:Error;
 
@@ -22,6 +22,7 @@ export async function retryAndDelay<T>(
             }
         }
     }
+    console.error(` 全部 ${maxRetries} 次重试失败`);
     throw lastError!;
 }
 

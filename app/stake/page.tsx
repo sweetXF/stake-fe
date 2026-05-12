@@ -13,7 +13,7 @@ export default function Stake() {
     const stakeContract=useStakeContract();
     const {address, isConnected}=useAccount();
     const [amount,setAmount]=useState('');
-    const {poolData,refresh} = useRewards();
+    const {poolData,refreshPool,refresh} = useRewards();
     const {data:walletClient}=useWalletClient();
 
     const [txMessage,setTxMessage]=useState('');
@@ -35,10 +35,10 @@ export default function Stake() {
       token:isEthPool ? undefined : (poolData.stTokenAddress as Address | undefined),
       query:{
         enabled:isConnected && (isEthPool || !!poolData.stTokenAddress),
-        refetchInterval:undefined,// 10000（10s）轮询（重新获取数据），undefined不轮询
+        refetchInterval:undefined,//每隔多少ms重新获取数据，undefined不轮询
         // refetchIntervalInBackground:true // 是否在后台自动刷新，默认false不刷新
         refetchOnMount:true, // 仅页面加载时请求一次
-        // refetchOnWindowFocus: false // 切回页面不重新请求
+        refetchOnWindowFocus: false // 切回页面不重新请求
       }
     })
     
@@ -71,6 +71,7 @@ export default function Stake() {
             setTxMessage('质押成功');
             setAmount(''); //重置 input amount
             refetchBalance?.(); //刷新钱包代币余额
+            refreshPool();//刷新poolData
             refresh(); //刷新RewardsData（pendingReward,stakedAmount,lastUpdate）
               return;
           }
@@ -95,6 +96,7 @@ export default function Stake() {
             setTxMessage('质押成功');
             setAmount('');
             refetchBalance?.();
+            refreshPool();
             refresh();
             return;
           }
@@ -107,7 +109,7 @@ export default function Stake() {
       } finally {
         setLoading(false);
       }
-    },[stakeContract,amount,balance,decimals,isEthPool,refetchBalance,refresh,tokenContract,walletClient]); 
+    },[stakeContract,amount,balance,decimals,isEthPool,refetchBalance,refresh,refreshPool,tokenContract,walletClient]); 
 
     return (
         <div className="min-h-[420px] p-4 sm:p-8 md:p-12 from-gray-800/80 to-gray-900/80 shadow-2xl border-primary-500/20 border-[1.5px] rounded-2xl sm:rounded-3xl">

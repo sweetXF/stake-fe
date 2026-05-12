@@ -2,6 +2,7 @@
 import { useStakeContract } from "@/hooks/useContract";
 import useRewards from "@/hooks/useRewards";
 import { BLOCK_TIME_SECONDS, Pid } from "@/utils";
+import { retryAndDelay } from "@/utils/retry";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { formatUnits, parseUnits } from "viem";
@@ -42,7 +43,7 @@ export default function Withdraw() {
     },[userData.withdrawable,isConnected]);
 
     //延迟时间
-    console.log(poolData,'unstakeLockedBlocks:',poolData.unstakeLockedBlocks);
+    console.log('unstakeLockedBlocks:',poolData.unstakeLockedBlocks);
     const delayTime_min=useMemo(()=>{
       const lockedBlocks=Number(poolData.unstakeLockedBlocks) || 0;
       const totalTime=lockedBlocks*BLOCK_TIME_SECONDS; //秒
@@ -54,13 +55,12 @@ export default function Withdraw() {
     const getUserData=useCallback(async ()=>{
         if(!stakeContract || !address) return;
         //当前账户质押的金额
-        const staked=await stakeContract.read.stakingBalance([Pid,address]);
+        const staked=await retryAndDelay(()=>stakeContract.read.stakingBalance([Pid,address]) as Promise<bigint>) ;
         //待提现的金额
         //requestAmount：总共申请解押的金额。pendingWithdrawAmount：可直接提现的金额
         //输入amount，点解押后withdrawPending有值，待提现，过20min左右withdrawable有值，可提现
         // @ts-ignore
-        const [requestAmount,pendingWithdrawAmount] = await 
-        stakeContract.read.withdrawAmount([Pid,address]);
+        const [requestAmount,pendingWithdrawAmount] = await retryAndDelay(()=>stakeContract.read.withdrawAmount([Pid,address]) as Promise<[bigint,bigint]>);
         const ableWAmount=Number(formatUnits(pendingWithdrawAmount,18));
         const totalWAmount=Number(formatUnits(requestAmount,18));
         setUserData({

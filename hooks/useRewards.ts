@@ -133,18 +133,22 @@ const useRewards = () => {
     },[isConnected,address,fetchPoolData,fetchMetaNodeAddress,fetchRewardsData]);
     
     //定期刷新RewardsData
-    // useEffect(()=>{
-    //     if(!isConnected || !address) return;
-    //     const interval=setInterval(()=>{
-    //         fetchRewardsData();
-    //     },60000) //每60秒刷新一次
-    //     return ()=>clearInterval(interval);
-    // },[isConnected,address,fetchRewardsData]);
+    useEffect(()=>{
+        if(!isConnected || !address) return;
+        const interval=setInterval(()=>{
+            fetchRewardsData();
+        },60000) //每60秒刷新一次
+        return ()=>clearInterval(interval);
+    },[isConnected,address,fetchRewardsData]);
 
-    //手动刷新RewardsData
+    //手动刷新
     const refresh=useCallback(()=>{
         fetchRewardsData();
     },[fetchRewardsData])
+
+    const refreshPool=useCallback(()=>{
+        fetchPoolData();
+    },[fetchPoolData])
 
     //添加MetaNode代币（MTD）到 MetaMask钱包
     // const addMetaNodeToWallet=useCallback(async()=>{
@@ -166,6 +170,7 @@ const useRewards = () => {
         loading,
         metaNodeAddress,
         refresh,
+        refreshPool,
         // addMetaNodeToWallet,
         canClaim:parseFloat(rewardsData.pendingReward) > 0,
     }
