@@ -62,11 +62,9 @@ const useRewards = () => {
     //useCallback 缓存函数，函数不会每次渲染都重新创建
     //获取池数据
    const fetchPoolData=useCallback(async()=>{
-        if(!stakeContract || !address || !isConnected) return;
-
+        if(!stakeContract || !address || !isConnected ) return;
         try{
             const pools = await retryAndDelay(()=>stakeContract.read.pool([Pid]) as Promise<PoolData>);
-
             setPoolData({
                 stTokenAddress: pools[0] as string,
                 poolWeight: formatUnits(pools[1] as bigint || BigInt(0), 18),
@@ -84,7 +82,6 @@ const useRewards = () => {
     //获取MetaNode代币地址
     const fetchMetaNodeAddress=useCallback(async()=>{
         if(!stakeContract) return;
-
         try{
             const MTDAddress = await retryAndDelay(()=> stakeContract.read.MetaNode() as Promise<string>);
             setMetaNodeAddress(MTDAddress as string);
@@ -99,7 +96,6 @@ const useRewards = () => {
 
         try{
             setLoading(true);
-
             const userData=await retryAndDelay(()=>stakeContract.read.user([Pid,address]) as Promise<UserData>);
             const stakedAmount = await retryAndDelay(()=>stakeContract.read.stakingBalance([Pid,address]) as Promise<bigint>);
 
@@ -130,7 +126,8 @@ const useRewards = () => {
                 fetchRewardsData();
             })
         }
-    },[isConnected,address,fetchPoolData,fetchMetaNodeAddress,fetchRewardsData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    },[isConnected,address]);
     
     //定期刷新RewardsData
     useEffect(()=>{
